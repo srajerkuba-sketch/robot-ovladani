@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ovládání Robota</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+            background-color: #f4f4f9;
+        }
+        h1 {
+            color: #333;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        button:active {
+            background-color: #0056b3;
+        }
+        #status {
+            margin-top: 30px;
+            font-size: 18px;
+            font-weight: bold;
+            color: #d9534f;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Můj Lego Robot</h1>
+    <p>Aplikace pro čtení dat a odesílání do Hubu</p>
+
+    <button id="connectBtn">Připojit přes Bluetooth</button>
+
+    <p id="status">Stav: Nepřipojeno</p>
+
+    <script>
+        const connectBtn = document.getElementById('connectBtn');
+        const statusText = document.getElementById('status');
+
+        connectBtn.addEventListener('click', async () => {
+            try {
+                statusText.innerText = "Stav: Hledám zařízení...";
+                statusText.style.color = "#f0ad4e"; 
+
+                // Spuštění vyhledávání Bluetooth zařízení
+                const device = await navigator.bluetooth.requestDevice({
+                    acceptAllDevices: true
+                });
+
+                statusText.innerText = "Stav: Připojeno k " + (device.name || "Neznámé zařízení");
+                statusText.style.color = "#5cb85c"; 
+
+            } catch (error) {
+                console.error(error);
+                statusText.innerText = "Stav: Chyba nebo zrušeno";
+                statusText.style.color = "#d9534f"; 
+            }
+        });
+    </script>
+
+</body>
+</html>
