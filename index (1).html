@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Robot Control</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:       #0a0c10;
+      --panel:    #111318;
+      --border:   #1e2330;
+      --accent:   #00e5ff;
+      --accent2:  #ff3d71;
+      --green:    #00e676;
+      --text:     #cdd6f4;
+      --dim:      #555e7a;
+      --font-mono: 'Share Tech Mono', monospace;
+      --font-ui:   'Exo 2', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-ui);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 16px 40px;
+      overflow-x: hidden;
+    }
+
+    /* Animated background grid */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,229,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,255,.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0 4px;
+    }
+    .logo {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+    .logo span { color: var(--accent2); }
+
+    /* Status pill */
+    #statusPill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--dim);
+      transition: all .3s;
+    }
+    #statusPill.connected {
+      border-color: var(--green);
+      color: var(--green);
+    }
+    #statusPill.connecting {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    #statusPill.error {
+      border-color: var(--accent2);
+      color: var(--accent2);
+    }
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .connected .dot { animation: pulse 1.4s infinite; }
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50%      { opacity: .3; }
+    }
+
+    /* Card */
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+    }
+    .card-title {
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--dim);
+      margin-bottom: 16px;
+    }
+
+    /* Connect button */
+    #connectBtn {
+      width: 100%;
+      padding: 18px;
+      font-family: var(--font-ui);
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--bg);
+      background: var(--accent);
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all .2s;
+      position: relative;
+      overflow: hidden;
+    }
+    #connectBtn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: white;
+      opacity: 0;
+      transition: opacity .15s;
+    }
+    #connectBtn:active::after { opacity: .15; }
+    #connectBtn:disabled {
+      background: var(--border);
+      color: var(--dim);
+      cursor: default;
+    }
+    #connectBtn.connected {
+      background: var(--accent2);
+      color: white;
+    }
+
+    /* Console */
+    #console {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.7;
+      background: #070910;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      height: 220px;
+      overflow-y: auto;
+      color: var(--text);
+      scroll-behavior: smooth;
+    }
+    #console::-webkit-scrollbar { width: 4px; }
+    #console::-webkit-scrollbar-track { background: transparent; }
+    #console::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .log-line { display: block; }
+    .log-line.in  { color: var(--green); }
+    .log-line.out { color: var(--accent); }
+    .log-line.sys { color: var(--dim); }
+    .log-line.err { color: var(--accent2); }
+    .log-prefix { opacity: .5; margin-right: 6px; }
+
+    /* Send row */
+    .send-row {
+      display: flex;
+      gap: 8px;
+    }
+    #cmdInput {
+      flex: 1;
+      background: #070910;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+      transition: border-color .2s;
+    }
+    #cmdInput:focus { border-color: var(--accent); }
+    #cmdInput::placeholder { color: var(--dim); }
+
+    #sendBtn {
+      padding: 12px 20px;
+      background: transparent;
+      border: 1px solid var(--accent);
+      border-radius: 10px;
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    #sendBtn:hover:not(:disabled) {
+      background: var(--accent);
+      color: var(--bg);
+    }
+    #sendBtn:disabled {
+      border-color: var(--border);
+      color: var(--dim);
+      cursor: default;
+    }
+
+    /* Quick command buttons */
+    .quick-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .qbtn {
+      padding: 14px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: var(--font-ui);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all .2s;
+      text-align: left;
+    }
+    .qbtn:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(0,229,255,.05);
+    }
+    .qbtn:disabled {
+      opacity: .35;
+      cursor: default;
+    }
+    .qbtn .qlabel {
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--dim);
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    /* Footer */
+    footer {
+      font-size: 11px;
+      color: var(--dim);
+      font-family: var(--font-mono);
+      text-align: center;
+      padding-top: 8px;
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo">ROBOT<span>OS</span></div>
+    <div id="statusPill">
+      <span class="dot"></span>
+      <span id="statusText">OFFLINE</span>
+    </div>
+  </header>
+
+  <!-- Connect -->
+  <div class="card">
+    <div class="card-title">Připojení</div>
+    <button id="connectBtn">Připojit přes Bluetooth</button>
+  </div>
+
+  <!-- Console -->
+  <div class="card">
+    <div class="card-title">Konzole</div>
+    <div id="console"></div>
+  </div>
+
+  <!-- Send command -->
+  <div class="card">
+    <div class="card-title">Odeslat příkaz</div>
+    <div class="send-row">
+      <input id="cmdInput" type="text" placeholder="napiš příkaz..." disabled />
+      <button id="sendBtn" disabled>↑ Odeslat</button>
+    </div>
+  </div>
+
+  <!-- Quick commands -->
+  <div class="card">
+    <div class="card-title">Rychlé příkazy</div>
+    <div class="quick-grid">
+      <button class="qbtn" data-cmd="ping" disabled>
+        <span class="qlabel">Test</span>
+        Ping
+      </button>
+      <button class="qbtn" data-cmd="status" disabled>
+        <span class="qlabel">Info</span>
+        Status
+      </button>
+      <button class="qbtn" data-cmd="stop" disabled>
+        <span class="qlabel">Zastavit</span>
+        Stop
+      </button>
+      <button class="qbtn" data-cmd="reset" disabled>
+        <span class="qlabel">Reset</span>
+        Reset
+      </button>
+    </div>
+  </div>
+
+  <footer>PyBricks BLE · Web Bluetooth API · v0.2</footer>
+
+</div>
+
+<script>
+  // === UUID ===
+  const PYBRICKS_SERVICE_UUID        = 'c5f50001-8280-46da-89f4-6d8051e4aeef';
+  const PYBRICKS_COMMAND_EVENT_UUID  = 'c5f50002-8280-46da-89f4-6d8051e4aeef';
+
+  // === State ===
+  let device     = null;
+  let server     = null;
+  let rxChar     = null;
+  let connected  = false;
+
+  // === DOM ===
+  const connectBtn  = document.getElementById('connectBtn');
+  const statusPill  = document.getElementById('statusPill');
+  const statusText  = document.getElementById('statusText');
+  const consoleEl   = document.getElementById('console');
+  const cmdInput    = document.getElementById('cmdInput');
+  const sendBtn     = document.getElementById('sendBtn');
+  const qbtns       = document.querySelectorAll('.qbtn');
+
+  // === Console log ===
+  function log(text, type = 'sys') {
+    const prefixes = { in: '◀', out: '▶', sys: '·', err: '!' };
+    const line = document.createElement('span');
+    line.className = 'log-line ' + type;
+    line.innerHTML = `<span class="log-prefix">${prefixes[type]}</span>${escHtml(text)}`;
+    consoleEl.appendChild(line);
+    consoleEl.appendChild(document.createTextNode('\n'));
+    consoleEl.scrollTop = consoleEl.scrollHeight;
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;');
+  }
+
+  // === Status ===
+  function setStatus(state, text) {
+    statusPill.className = state;
+    statusText.textContent = text;
+  }
+
+  // === Enable / disable UI ===
+  function setConnected(val) {
+    connected = val;
+    connectBtn.textContent = val ? 'Odpojit' : 'Připojit přes Bluetooth';
+    connectBtn.classList.toggle('connected', val);
+    cmdInput.disabled  = !val;
+    sendBtn.disabled   = !val;
+    qbtns.forEach(b => b.disabled = !val);
+    if (val) {
+      setStatus('connected', 'ONLINE');
+    } else {
+      setStatus('', 'OFFLINE');
+    }
+  }
+
+  // === Receive data from hub (stdout) ===
+  function handleNotification(event) {
+    const data  = event.target.value;
+    const type  = data.getUint8(0);
+
+    // 0x01 = stdout event
+    if (type === 0x01) {
+      const payload = new TextDecoder().decode(data.buffer.slice(1));
+      payload.split('\n').forEach(line => {
+        if (line.trim()) log(line, 'in');
+      });
+    }
+  }
+
+  // === Send text to hub (stdin) ===
+  async function sendText(text) {
+    if (!rxChar || !connected) return;
+    try {
+      // 0x06 = write stdin command
+      const encoded = new TextEncoder().encode(text + '\n');
+      const packet  = new Uint8Array(1 + encoded.length);
+      packet[0]     = 0x06;
+      packet.set(encoded, 1);
+      await rxChar.writeValueWithoutResponse(packet);
+      log(text, 'out');
+    } catch (e) {
+      log('Chyba odesílání: ' + e.message, 'err');
+    }
+  }
+
+  // === Connect ===
+  async function connect() {
+    try {
+      setStatus('connecting', 'HLEDÁM...');
+      log('Hledám PyBricks hub...', 'sys');
+
+      device = await navigator.bluetooth.requestDevice({
+        filters: [{ services: [PYBRICKS_SERVICE_UUID] }],
+        optionalServices: [PYBRICKS_SERVICE_UUID]
+      });
+
+      log('Nalezen: ' + (device.name || 'Neznámé zařízení'), 'sys');
+      setStatus('connecting', 'PŘIPOJUJI...');
+
+      device.addEventListener('gattserverdisconnected', onDisconnect);
+
+      server = await device.gatt.connect();
+      log('GATT server připojen', 'sys');
+
+      const service = await server.getPrimaryService(PYBRICKS_SERVICE_UUID);
+      rxChar = await service.getCharacteristic(PYBRICKS_COMMAND_EVENT_UUID);
+
+      await rxChar.startNotifications();
+      rxChar.addEventListener('characteristicvaluechanged', handleNotification);
+
+      log('Notifikace aktivní — hub připojen! 🟢', 'sys');
+      setConnected(true);
+
+    } catch (e) {
+      if (e.name === 'NotFoundError') {
+        log('Zrušeno nebo nenalezeno', 'sys');
+      } else {
+        log('Chyba: ' + e.message, 'err');
+      }
+      setStatus('error', 'CHYBA');
+      setTimeout(() => setStatus('', 'OFFLINE'), 2000);
+    }
+  }
+
+  // === Disconnect ===
+  async function disconnect() {
+    if (device && device.gatt.connected) {
+      device.gatt.disconnect();
+    }
+    onDisconnect();
+  }
+
+  function onDisconnect() {
+    log('Hub odpojen', 'sys');
+    setConnected(false);
+    rxChar  = null;
+    server  = null;
+    device  = null;
+  }
+
+  // === Events ===
+  connectBtn.addEventListener('click', () => {
+    if (connected) disconnect();
+    else connect();
+  });
+
+  sendBtn.addEventListener('click', () => {
+    const txt = cmdInput.value.trim();
+    if (txt) {
+      sendText(txt);
+      cmdInput.value = '';
+    }
+  });
+
+  cmdInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') sendBtn.click();
+  });
+
+  qbtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      sendText(btn.dataset.cmd);
+    });
+  });
+
+  // === Init ===
+  log('RobotOS připraven. Stiskni Připojit.', 'sys');
+
+  if (!navigator.bluetooth) {
+    log('⚠ Web Bluetooth API není dostupné v tomto prohlížeči!', 'err');
+    log('Použij Chrome nebo Edge na Androidu.', 'err');
+    connectBtn.disabled = true;
+    setStatus('error', 'NO BLE');
+  }
+</script>
+</body>
+</html>
